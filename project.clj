@@ -12,4 +12,3 @@
                  [clj-http "0.1.3"]]
 
   :main learning.passphraseGenerator)
-
