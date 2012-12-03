@@ -42,15 +42,17 @@
   (send-email! "ERROR" error-message))
 
 (defn -main [& args]
-  (for [address addresses]
-    (let [url (blockchain-json-url address)
-          string-json (:body (client/get url))
-          data (try (read-json string-json)
-                    (catch Exception e
-                      (report-exception! (str (.getMessage e)))))]
-      (if-not (and (map? data)
-                     (= (:address data) address)
-                     (= (:final_balance data) 2667000100))
-        (do (notify-me! address) (keyword (str "failed-" address)))
-        )))
+  (doseq [address addresses]
+    (do (println "looking at" address)
+        (let [url (blockchain-json-url address)
+              string-json (:body (client/get url))
+              data (try (read-json string-json)
+                        (catch Exception e
+                          (report-exception! (str (.getMessage e)))))]
+          (if (and (map? data)
+                   (= (:address data) address)
+                   (>= (:final_balance data) 2667000100))
+            (println "final balance is" (/ (:final_balance data) 1E8))
+            (do (notify-me! address)
+                (keyword (str "failed-" address)))))))
   (report-check-carried-out!))

@@ -55,6 +55,25 @@
 ;;          (get-web-random!)
 ;;          ;; we're out of random numbers.. get some.
 ;;          (cons (first rands) (lazy-seq (next rands)))))))
+(defn- random-nums!
+  []
+  (let [response (client/get random-org-url
+                             {:headers
+                              {"user-agent" "avi.rei@gmail.com"}})
+        body (string/split (:body response) #"\t")
+        nums (map #(Long/parseLong %)
+                  (conj (butlast body)
+                        (string/join (butlast (last body)))))]
+    nums))
+
+(def random-pool [])
+
+(defn- get-web-random!
+  ([] (let [rands (random-nums!)]
+        (get-web-random! rands)))
+  ([rands]
+     (let [printable-chars (vec (map char (range 32 127)))]
+       (string/join "" (for [n rands] (printable-chars n))))))
 
 (defn- diceware-idx [random-quality]
   "generate a random index between 11111 and
@@ -75,7 +94,22 @@
        (compare-and-set! word-map nil (map-words)))
      (for [_ (range n)]
        (string/join " " (for [_ (range 10)]
+<<<<<<< Updated upstream
                           (word-map (diceware-idx random-quality)))))))
+=======
+                          (word-map (generate-idx random-quality)))))))
+
+(defn- web-passphrases
+  ([random-quality word-map]
+     (web-passphrases random-quality word-map 1))
+  ([random-quality word-map n]
+     (for [_ (range n)]
+       (generate-idx :random-org))))
+
+
+(defmethod decoy :diceware [{word-map :word-map n :n}]
+      (diceware-passphrases :weak-random word-map n))
+>>>>>>> Stashed changes
 
 (defn- map-words []
   (let [s (slurp "files/beale.wordlist.asc")
