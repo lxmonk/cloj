@@ -91,45 +91,69 @@
   (fn [vs]
     (let [len (apply max (map count vs))
           sqrs (squares vs)]
+      (println :f152-len len :sqrs sqrs)
       (frequencies
        (map second (distinct
                     (for [sqr sqrs
                           row (range len)
                           col (range len)
-                          size (range 2 len)
+                          size (range 2 (inc len))
+                          dc (do (println :sqr sqr :row row :col col
+                                          :size size) [1])
                           :when (latin-square? sqr row col size)]
                       [sqr size])))))))
 
-(defn squares [vs]
+(defn countdown [v]
+  (map #(vec (range %)) (map inc v)))
+        
+(defn squares
   "create an IxJxK.. matrix of squares, where I, J, K, ... are each in
    correspondence with the difference in length between a vector in vs
    and the maximal length of a vector in vs.
    Every dimension holds a square which  is different from other squares
    in the dimenoffset of a single vector in vs."
-  (let [len (apply max (map count vs))
-        padded (map #(pad len %) vs)
-        diffs (map #(- len (count %)) vs)]
-    [len padded diffs]))
+  ([vs]
+     (println "(squares " vs ")")
+     (let [len (apply max (map count vs))
+           padded (mapv #(pad len %) vs)
+           diffs (map #(- len (count %)) vs)
+           shifts (eval (let [syms (repeatedly (count diffs) gensym)]
+                          `(for ~(vec
+                                  (interleave syms `~(countdown diffs)))
+                             ~(vec syms))))]
+       (println :len len :padded padded :shifts shifts)
+       (let [ret (map #(shift-square padded %) shifts)]
+             (println "=> " ret)
+             ret))))
+
+;;; (map #(shift-square PADS %) shfts)
 
 (defn pad [len v]
-  (vec (concat v (repeat (- len (count v)) nil))))
+  (vec (concat (repeat (- len (count v)) nil) v)))
 
 (defn shift-square [square shifts]
-  (assert (= (count square) (count shifts)))
+  ;; (println :square square :shifts shifts)
+  ;; (assert (= (count square) (count shifts)))
   (vec (for [i (range (count square))]
          (shift (square i) (shifts i)))))
 
 (defn latin-square? [sqr row col size]
-  (let [sqr (subvec2 sqr row col size)
-        transposed-sqr (transpose sqr)
-        members (set (filter not-nil (flatten sqr)))]
-    (and
-     (= (count members) size) ; exactly the right number of members
-     ; all rows and cols have all the members
-     (every? identity
-             (for [i (range size)]
-               (and (= members (sqr i))
-                    (= members (transposed-sqr i))))))))
+  (println  "(latin-square?" sqr row col size ")")
+  (let [ret
+        (try
+          (let [sqr (subvec2 sqr row col size)
+                transposed-sqr (transpose sqr)
+                members (set (filter not-nil (flatten sqr)))]
+            (and
+                                        ; exactly the right number of members
+             (= (count members) size)   
+                                        ; all rows and cols have all the members
+             (every? identity
+                     (for [i (range size)]
+                       (and (= members (sqr i))
+                            (= members (transposed-sqr i)))))))
+          (catch Exception e false))]
+    (println "latin-square? =>" ret)))
                                   
 
 (defn subvec2 [sqr row col size]
