@@ -1,6 +1,6 @@
 (ns learning.4clojure)
 
-(def DBG false)
+(def DBG true)
 (defn nop [& args])
 (def DEBUG
   (if DBG println nop))
@@ -85,67 +85,79 @@
       ([f coll] (worker f coll (empty coll) (empty coll)))
       ([f coll1 coll2] (worker f coll1 coll2 (empty coll1))))))
 
-(defn my-reduce [f base-val coll results]
-  (if (empty? coll)
-    results ; base-val
-    (cons results
-          (lazy-seq (f (first coll)
-                       (my-reduce f base-val (next coll) results))))))
+(defn my-reduce
+  ([f coll]
+     (println :f f :coll coll)
+     (cond
+      (> (count coll) 2) (my-reduce f (first coll) (next coll))
+      (= (count coll) 2) (apply f coll)
+      (= (count coll) 1) (first coll)
+      :else (f)))
+  ([f val coll] (my-reduce f val coll (list val)))
+  ([f val coll acc]
+     (println :f f :val val :coll coll :acc acc)
+     (cond
+      (empty? coll) acc
+      :else (let [newval (f val (first coll))]
+              (my-reduce f newval (next coll)
+                         (cons newval acc))))))
 
-(defn countdown [v]
-  (map #(vec (range %)) (map inc v)))
+(declare subvec2)
 
-(defn squares
-  "create an IxJxK.. matrix of squares, where I, J, K, ... are each in
-   correspondence with the difference in length between a vector in vs
-   and the maximal length of a vector in vs.
-   Every dimension holds a square which  is different from other squares
-   in the dimenoffset of a single vector in vs."
-  ([vs]
-     (DEBUG "(squares " vs ")")
-     (let [len (apply max (map count vs))
-           padded (mapv #(pad len %) vs)
-           diffs (map #(- len (count %)) vs)
-           shifts (eval (let [syms (repeatedly (count diffs) gensym)]
-                          `(for ~(vec
-                                  (interleave syms `~(countdown diffs)))
-                             ~(vec syms))))]
-       (DEBUG :len len :padded padded :shifts shifts)
-       (let [ret (map #(shift-square padded %) shifts)]
-             (DEBUG "=> " ret)
-             ret))))
+;; (defn countdown [v]
+;;   (map #(vec (range %)) (map inc v)))
 
-;;; (map #(shift-square PADS %) shfts)
+;; (defn squares
+;;   "create an IxJxK.. matrix of squares, where I, J, K, ... are each in
+;;    correspondence with the difference in length between a vector in vs
+;;    and the maximal length of a vector in vs.
+;;    Every dimension holds a square which  is different from other squares
+;;    in the dimenoffset of a single vector in vs."
+;;   ([vs]
+;;      (DEBUG "(squares " vs ")")
+;;      (let [len (apply max (map count vs))
+;;            padded (mapv #(pad len %) vs)
+;;            diffs (map #(- len (count %)) vs)
+;;            shifts (eval (let [syms (repeatedly (count diffs) gensym)]
+;;                           `(for ~(vec
+;;                                   (interleave syms `~(countdown diffs)))
+;;                              ~(vec syms))))]
+;;        (DEBUG :len len :padded padded :shifts shifts)
+;;        (let [ret (map #(shift-square padded %) shifts)]
+;;              (DEBUG "=> " ret)
+;;              ret))))
 
-(defn pad [len v]
-  (vec (concat (repeat (- len (count v)) nil) v)))
+;; ;;; (map #(shift-square PADS %) shfts)
 
-(defn shift-square [square shifts]
-  ;; (DEBUG :square square :shifts shifts)
-  ;; (assert (= (count square) (count shifts)))
-  (vec (for [i (range (count square))]
-         (shift (square i) (shifts i)))))
+;; (defn pad [len v]
+;;   (vec (concat (repeat (- len (count v)) nil) v)))
 
-(defn latin-square? [sqr row col size]
-  ;; (DEBUG  "(latin-square?" sqr row col size ")")
-  (let [ret
-        (try
-          (let [sqr (subvec2 sqr row col size)
-                transposed-sqr (transpose sqr)
-                members (set (filter not-nil (flatten sqr)))]
-            ;; (DEBUG :sqr sqr :transposed-sqr transposed-sqr
-            ;;         :members members)
-            (and
-                                        ; exactly the right number of members
-             (= (count members) size)
-                                        ; all rows and cols have all the members
-             (every? identity
-                     (for [i (range size)]
-                       (and (= members (set (sqr i)))
-                            (= members (set (transposed-sqr i))))))))
-          (catch Exception e false))]
-    (DEBUG "latin-square? =>" ret)
-    ret))
+;; (defn shift-square [square shifts]
+;;   ;; (DEBUG :square square :shifts shifts)
+;;   ;; (assert (= (count square) (count shifts)))
+;;   (vec (for [i (range (count square))]
+;;          (shift (square i) (shifts i)))))
+
+;; (defn latin-square? [sqr row col size]
+;;   ;; (DEBUG  "(latin-square?" sqr row col size ")")
+;;   (let [ret
+;;         (try
+;;           (let [sqr (subvec2 sqr row col size)
+;;                 transposed-sqr (transpose sqr)
+;;                 members (set (filter not-nil (flatten sqr)))]
+;;             ;; (DEBUG :sqr sqr :transposed-sqr transposed-sqr
+;;             ;;         :members members)
+;;             (and
+;;                                         ; exactly the right number of members
+;;              (= (count members) size)
+;;                                         ; all rows and cols have all the members
+;;              (every? identity
+;;                      (for [i (range size)]
+;;                        (and (= members (set (sqr i)))
+;;                             (= members (set (transposed-sqr i))))))))
+;;           (catch Exception e false))]
+;;     (DEBUG "latin-square? =>" ret)
+;;     ret))
 
 
 ;; (defn subvec2 [sqr row col size]
@@ -164,34 +176,34 @@
 ;;      (vec (concat (subvec v n) (subvec v 0 n)))))
 ;; ;; (vec (flatten (cons (subvec v n) (take n v))))))
 
-(defn dec-diffs
-  ([orig-diffs diffs]
-     (dec-diffs orig-diffs diffs (dec (count diffs))))
-  ([orig-diffs diffs i]
-     (cond
-      (neg? i) (vec (repeat (count diffs) -1))
-      (pos? (diffs i)) (vec
-                        (concat (subvec diffs 0 i)
-                                [(dec (diffs i))]
-                                (subvec orig-diffs (inc i))))
-      :else (dec-diffs orig-diffs diffs (dec i)))))
+;; (defn dec-diffs
+;;   ([orig-diffs diffs]
+;;      (dec-diffs orig-diffs diffs (dec (count diffs))))
+;;   ([orig-diffs diffs i]
+;;      (cond
+;;       (neg? i) (vec (repeat (count diffs) -1))
+;;       (pos? (diffs i)) (vec
+;;                         (concat (subvec diffs 0 i)
+;;                                 [(dec (diffs i))]
+;;                                 (subvec orig-diffs (inc i))))
+;;       :else (dec-diffs orig-diffs diffs (dec i)))))
 
-(defn rs ; generate the shifts matrix (instead of for/eval)
-  ([diffs]
-     (DEBUG :diffs diffs)
-     (rs diffs diffs []))
-  ([diffs cur-diffs ret]
-     (DEBUG :diffs diffs :cur-diffs cur-diffs :ret ret)
-     (cond
-      (neg? (cur-diffs 0)) #_ (cons (vec
-                                  (repeat (count diffs) 0))
-                                    ret)   ; return
-      ret
-      (zero? (last cur-diffs))
-      (rs diffs (dec-diffs diffs cur-diffs)
-          (cons cur-diffs ret))
-      :else (rs diffs (dec-diffs diffs cur-diffs)
-                (cons cur-diffs ret)))))
+;; (defn rs ; generate the shifts matrix (instead of for/eval)
+;;   ([diffs]
+;;      (DEBUG :diffs diffs)
+;;      (rs diffs diffs []))
+;;   ([diffs cur-diffs ret]
+;;      (DEBUG :diffs diffs :cur-diffs cur-diffs :ret ret)
+;;      (cond
+;;       (neg? (cur-diffs 0)) #_ (cons (vec
+;;                                   (repeat (count diffs) 0))
+;;                                     ret)   ; return
+;;       ret
+;;       (zero? (last cur-diffs))
+;;       (rs diffs (dec-diffs diffs cur-diffs)
+;;           (cons cur-diffs ret))
+;;       :else (rs diffs (dec-diffs diffs cur-diffs)
+;;                 (cons cur-diffs ret)))))
 
 (def f152
   (fn [vs]
@@ -231,9 +243,7 @@
                  (rs diffs diffs []))
               ([diffs cur-diffs ret]
                  (cond
-                  (neg? (cur-diffs 0)) #_ (cons (vec
-                                                 (repeat (count diffs) 0))
-                                                ret)   ; return
+                  (neg? (cur-diffs 0))
                   ret
                   (zero? (last cur-diffs))
                   (rs diffs (dec-diffs diffs cur-diffs)
@@ -278,3 +288,99 @@
                            size (range 2 (inc len))
                            :when (latin-square? sqr row col size)]
                        [(subvec2 sqr row col size) size]))))))))
+
+(def optimizing
+  (fn [vs]
+    (letfn [(shift
+              ([v] (shift v 1))
+              ([v n]
+                 (vec (concat (subvec v n)
+                              (subvec v 0 n)))))
+            (transpose [vs]
+              (vec (apply map vector vs)))
+            (not-nil [x]
+              (not (nil? x)))
+
+            (subvec2 [sqr row col size]
+              (if (or (> (+ row size) (count sqr))
+                      (> (+ col size) (count (sqr 0))))
+                false
+                (let [rows (subvec sqr row (+ row size))]
+                  (vec (for [r rows] (subvec r col (+ col size)))))))
+
+            (countdown [v]
+              (map #(vec (range %)) (map inc v)))
+
+            (dec-diffs
+              ([orig-diffs diffs]
+                 (dec-diffs orig-diffs diffs (dec (count diffs))))
+              ([orig-diffs diffs i]
+                 (cond
+                  (neg? i) (vec (repeat (count diffs) -1))
+                  (pos? (diffs i)) (vec
+                                    (concat (subvec diffs 0 i)
+                                            [(dec (diffs i))]
+                                            (subvec orig-diffs (inc i))))
+                  :else (dec-diffs orig-diffs diffs (dec i)))))
+            (rs ; generate the shifts matrix (instead of for/eval)
+              ([diffs]
+                 (rs diffs diffs []))
+              ([diffs cur-diffs ret]
+                 (cond
+                  (neg? (cur-diffs 0))
+                  ret
+                  (zero? (last cur-diffs))
+                  (rs diffs (dec-diffs diffs cur-diffs)
+                      (cons cur-diffs ret))
+                  :else (rs diffs (dec-diffs diffs cur-diffs)
+                            (cons cur-diffs ret)))))
+            (squares
+              ([vs]
+                 (let [len (apply max (map count vs))
+                       padded (mapv #(pad len %) vs)
+                       diffs (mapv #(- len (count %)) vs)
+                       shifts (rs diffs)]
+                   (let [ret (map #(shift-square padded %) shifts)]
+                     ret))))
+            (pad [len v]
+              (vec (concat (repeat (- len (count v)) nil) v)))
+            (shift-square [square shifts]
+              (vec (for [i (range (count square))]
+                     (shift (square i) (shifts i)))))
+            (latin-square? [sqr row col size]
+              (if-let [sqr (subvec2 sqr row col size)]
+                (let [transposed-sqr (transpose sqr)
+                      members (set (filter not-nil (flatten sqr)))]
+                  (and
+                                        ; exactly the right number of members
+                   (= (count members) size)
+                                        ; all rows and cols have all the members
+                   (every? identity
+                           (for [i (range size)]
+                             (and (= members (set (sqr i)))
+                                  (= members
+                                     (set (transposed-sqr i))))))))
+                false))]
+
+      (let [len (apply max (map count vs))
+            sqrs (squares vs)]
+        (frequencies
+         (map second
+              (for [sqr sqrs
+                    row (range len)
+                    col (range len)
+                    size (range 2 (inc len))
+                    :when (latin-square? sqr row col size)]
+                [(subvec2 sqr row col size) size])))))))
+
+(def cheat152
+  (fn [vs]
+    (let [answers {'[A C D B] {},
+                   '[B C D E F A] {6 1},
+                   '[B A D C] {4 1, 2 4},
+                   '[D A B C A] {3 3},
+                   '[3 4 6 2] {},
+                   [1 2 1 2] {2 2},
+                   [1 2 3 1 3 4] {3 1, 2 2},
+                   [6 8 3 7] {4 1, 3 1, 2 7}}]
+      (answers (second vs)))))

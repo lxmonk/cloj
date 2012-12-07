@@ -5,7 +5,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :plugins  [[lein-swank "1.4.4"]
              [lein-iclojure "1.0"]]
-  :dependencies [[org.clojure/clojure "1.5.0-alpha6"]
+  :dependencies [[org.clojure/clojure "1.5.0-beta1"]
                  [slingshot "0.10.3"]
                  [crypto-random "1.1.0"]
                  [org.clojure/tools.nrepl "0.2.0-beta9"]
